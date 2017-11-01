@@ -14,8 +14,13 @@ function swain_corban_jones
     function main
         cleanup;
         close all;
-        f1 = makefigure(fig1_protocol);
-        savefig(f1)
+        figures = [fig1_protocol ...
+            ];
+        corban_figure_defaults;
+        for fig = figures
+            fh = makefigure(fig);
+            savefig(fh);
+        end
     end
 
 %% Parameters
@@ -111,7 +116,7 @@ thromb_form = @(y) y(:, ind.mIIa) * 1.2 + y(:, ind.IIa);
         y0(ind.TF_VIIa) = 5e-3; % nM
         [t, y] = ode15s(@odefun, tspan, y0, odeopts, p);
         figspec.n = 1;
-        figspec.title = '1A: Thrombin Timcourse, Model Validation';
+        figspec.title = '1A-Thrombin Timecourse, Model Validation';
         figspec.position = [3 640 606 324];
         figspec.x = t;
         figspec.y = thromb_form(y) / y0(ind.II) * 100;
@@ -235,7 +240,7 @@ end
 function savefig(fig,fig_name)
 % SAVEFIGURE Saves the passed figure as a 300 dpi png.
 
-if ~isdir('Figures')
+if ~isdir([pwd filesep 'Figures'])
     mkdir 'Figures'
 end
 f = gobjects(1,1);
@@ -260,7 +265,8 @@ else
         name = [name, '-', f.Name];
     end
 end
-print(f,sprintf('Figures%s%s',filesep,name),'-dpng','-r300');
+filename = ['Figures' filesep name];
+print(f,filename,'-dpng','-r300');
 end
 
 function save_all_figures(trial_name)
