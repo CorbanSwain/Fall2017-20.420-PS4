@@ -10,3 +10,6 @@ tramp
 
 # Common
 .DS_Store
+
+# MATLAB Autosave
+*.asv
