@@ -11,37 +11,41 @@ function swain_corban_jones
 % HW Completed by Corban Swain
 % November 2017
 
-% FIXME - Remove Close All before submission
-clc; clear; % close all;
+    function main
+        cleanup;
+%         close all;
+    end
+
 % Rate Constants and initial conditions - GET from Jones paper!
-k1 = 2e7;   % [1/M/s] - Activation of V by Xa
-k2 = 2e7;   % [1/M/s] - Activation of V by IIa
-k3 = 1e7;   % [1/M/s] - Activation of VIII by Xa
-k4 = 2e6;   % [1/M/s] - Activation of VIII by IIa (incorrect in paper)
-k5 = 1e7;   % [1/M/s] - Conversion of mIIa to IIa by Va-Xa
-k6 = 1e8;   % [1/M/s] - on-rate for rapidly formed complexes
-k7 = 1e7;   % [1/M/s] - on-rate for the VIIIa-IXa complex
-k8 = 4e8;   % [1/M/s] - on-rate for the Va-Xa complex
+k1 = 2e-2;  % [1/nM/s] - Activation of V by Xa
+k2 = 2e-2;  % [1/nM/s] - Activation of V by IIa
+k3 = 1e-2;  % [1/nM/s] - Activation of VIII by Xa
+k4 = 2e-3;  % [1/nM/s] - Activation of VIII by IIa (incorrect in paper)
+k5 = 1e-2;  % [1/nM/s] - Conversion of mIIa to IIa by Va-Xa
+k6 = 0.1;   % [1/nM/s] - on-rate for rapidly formed complexes
+k7 = 1e-2;  % [1/nM/s] - on-rate for the VIIIa-IXa complex
+k8 = 0.4;   % [1/nM/s] - on-rate for the Va-Xa complex
 k9 = 5e-3;  % [1/s]   - off-rate for VIIIa-Ixa
 k10 = 0.4;  % [1/s]   - off-rate for Va-Xa complex
 k11 = 0.3;  % [1/s]   - Vmax for activation of IX by TF-VIIIa
 k12 = 1.15; % [1/s]   - Vmax for activation of X by TF-VIIIa
 k13 = 8.2;  % [1/s]   - Vmax for activation of X by VIIIa-IXa
 k14 = 32;   % [1/s]   - Vmax for mIIa formation by Va-Xa
-k15 = 1e5;  % [1/M/s] - Activation of IX by Xa
+k15 = 1e-4; % [1/nM/s] - Activation of IX by Xa
 k16 = 24;   % [1/s]   - off-rate for IX on TF-VIIa
 k17 = 44;   % [1/s]   - off-rate for X on TF-VIIa complex
 k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
-    
-% Initial concentrations in [M] (GET from Lawson et al. 1994)
-TF_VIIa = 1;        % species 1 
-IX = 90e-9;         % species 2
-X = 170e-9;         % species 3
-V = 20e-9;          % species 4
-VIII = 0.7e-9;      % species 5
-II = 1.4e-6;        % species 6 - prothrombin
+p_original = collect_params;
+
+% Initial concentrations in [nM] (GET from Lawson et al. 1994)
+TF_VIIa = 5e-3;        % species 1 
+IX = 90;         % species 2
+X = 170;         % species 3
+V = 20;          % species 4
+VIII = 0.7;      % species 5
+II = 1.4e3;        % species 6 - prothrombin
 VIIIa_IXa = 0;      % species 7
 Va_Xa = 0;          % species 8
 IIa = 0;            % species 9 - alpha-thrombin
@@ -54,61 +58,66 @@ IXa = 0;            % species 15
 Xa = 0;             % species 16
 Va = 0;             % species 17
 VIIIa = 0;          % species 18
+y0_original = collect_initials;
+
+% Struct for easier indexing of specific species.
+ind = struct;
+ind.TF_VIIa = 1;
+ind.IX =  2;
+ind.X =  3;
+ind.V =  4;
+ind.VIII = 5;
+ind.II = 6;
+ind.VIIIa_IXa =  7;
+ind.Va_Xa = 8;
+ind.IIa = 9;
+ind.Va_Xa_II = 10;
+ind.mIIa = 11;
+ind.TF_VIIa_IX = 12;
+ind.TF_VIIa_X = 13;
+ind.VIIIa_IXa_X = 14;
+ind.IXa = 15;
+ind.Xa = 16;
+ind.Va = 17;
+ind.VIIIa = 18;
 
 % ODE solver options
-options = odeset('RelTol',1e-8,'AbsTol',1e-8);
-tspan = [0 20];
+tol = 1e-9;
+odeopts = odeset('RelTol',tol,'AbsTol',tol);
+tspan = [0, 250];
 
-%% Fig 1
+    function p = collect_params
+    % collect parameters for original model
+        p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
+             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
+    end
 
-% collect parameters for original model
-p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-     k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
+    function y0 = collect_initials
+    % Collect species initial concentrations for original model
+        y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
+            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa];
+    end
 
-% Collect species initial concentrations for original model
-y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
-      TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa];
-  
-[t1,y1] = ode15s(@odefun,tspan,y0,options,p);
+%% Figure 1
+    function [t, y] = fig1_protocol
+        p = p_original;
+        y0 = y0_original;
+        y0(ind.TF_VIIa) = 5e-3; % nM
+        [t, y] = ode15s(@odefun, tspan, y0, odeopts, p);
+    end
 
-%% Fig 2
+%% Figure 2
+    function [t, y] = fig2_protocol
+        p = p_original;
+        p([1, 2, 20]) = [100, 1e3, 1e5];
+        y0 = y0_original;
+        [t, y] = ode15s(@odefun,tspan,y0,odeopts,p);
+    end
 
-k1 = 100;
-k2 = 1000;
-k20 = 10000;
-
-% collect parameters for original model
-p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-     k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
-  
-[t2,y2] = ode15s(@odefun,tspan,y0,options,p);
-
-% Call plotting of figure 1
-FIG1(t1,y1);
-FIG2(t2,y2);
-
+main;
 end
 
-function FIG1(t,y)
-size(y)
-
-figure(1); clf;
-plot(t,y(:,1),t,y(:,2),t,y(:,6));
-xlabel('Time (min)')
-ylabel('Species (M)')
-
-end
-
-function FIG2(t,y)
-
-figure(2); clf;
-plot(t,y); 
-xlabel('Time (min)')
-ylabel('Species (M)')
-
-end
-
-% ODE FUNCTION
+%% ODE FUNCTION
 function ydot = odefun(~,y,p)
 
 % Collect param values in cell array and redefine params with names
@@ -182,4 +191,105 @@ dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa + k4*(VIII*IIa + VIII*mIIa);
 % Collect all ODEs for output
 ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
         dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa];
+end
+
+%% Corban Swain Utils
+function new_fig = setupfig(n,title,location)
+% SETUPFIGURE Sets up a new figure.
+%
+% n: figure number
+% title: figure title
+% location: figure position, [left bottom width height]
+%
+new_fig = figure(n); clf; hold on;
+box off;
+new_fig.Name = title;
+if nargin > 2
+    new_fig.Position = location;
+end
+end
+
+function savefig(fig,fig_name)
+% SAVEFIGURE Saves the passed figure as a 300 dpi png.
+
+if ~isdir('Figures')
+    mkdir 'Figures'
+end
+f = gobjects(1,1);
+name = '';
+switch nargin
+    case 0
+        f = gcf;
+    case 1
+        f = fig;
+    case 2
+        f = fig;
+        name = fig_name;
+end
+if isempty(name)
+    if isempty(f.Name)
+        name = 'Untitled';
+    else
+        name = fig.Name;
+    end
+else
+    if ~isempty(f.Name)
+        name = [name, ' - ', f.Name];
+    end
+end
+print(f,sprintf('Figures%s%s',filesep,name),'-dpng','-r300');
+end
+
+function save_all_figures(trial_name)
+% SAVEALLFIGURES saves all open figures as 300 dpi png files.
+
+fprintf('%s - Saving all figures ...\n\n', datestr(now));
+num = 1;
+figs = findall(groot, 'Type', 'figure');
+num_figs = length(figs);
+
+for i = 1:num_figs
+    f = figs(i);
+    
+    if isempty(f.Name)
+        name = sprintf('Untitled%02d',num);
+        num = num + 1;
+    else
+        name = f.Name;
+    end
+    
+    if nargin == 1
+        name = sprintf('%s - %s',trial_name,name);
+    end
+    
+    fprintf('Saving Figure %d of %d, \"%s\" ... \n',...
+        i, num_figs, name);
+    savefig(f, name);
+end
+fprintf('Saving Done!\n\n')
+
+end
+
+function corban_figure_defaults
+% CORBANFIGUREDEFAULTS Sets default values to make pretty figures.
+fontSize = 15;
+font = 'Helvetica';
+set(groot, ...
+    'defaultLineMarkerSize', 40,...
+    'defaultLineLineWidth', 3, ...
+    'defaultAxesFontSize', fontSize, ...
+    'defaultAxesTitleFontWeight', 'normal', ...
+    'defaultAxesFontName', font, ...
+    'defaultAxesLabelFontSizeMultiplier', 1.1, ...
+    'defaultAxesLineWidth', 2, ...
+    'defaultFigureColor', [1 1 1], ...
+    'defaultTextInterpreter', 'tex', ...
+    'defaultTextFontSize',fontSize, ...
+    'defaultTextFontName', font ...
+    );
+end
+
+function cleanup
+clc;
+clear;
 end
