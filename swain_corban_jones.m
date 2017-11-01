@@ -14,8 +14,10 @@ function swain_corban_jones
     function main
         cleanup;
 %         close all;
+        f1 = makefigure(fig1_protocol);
     end
 
+%% Parameters
 % Rate Constants and initial conditions - GET from Jones paper!
 k1 = 2e-2;  % [1/nM/s] - Activation of V by Xa
 k2 = 2e-2;  % [1/nM/s] - Activation of V by IIa
@@ -40,12 +42,12 @@ k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
 p_original = collect_params;
 
 % Initial concentrations in [nM] (GET from Lawson et al. 1994)
-TF_VIIa = 5e-3;        % species 1 
-IX = 90;         % species 2
-X = 170;         % species 3
-V = 20;          % species 4
-VIII = 0.7;      % species 5
-II = 1.4e3;        % species 6 - prothrombin
+TF_VIIa = 5e-3;     % species 1 
+IX = 90;            % species 2
+X = 170;            % species 3
+V = 20;             % species 4
+VIII = 0.7;         % species 5
+II = 1.4e3;         % species 6 - prothrombin
 VIIIa_IXa = 0;      % species 7
 Va_Xa = 0;          % species 8
 IIa = 0;            % species 9 - alpha-thrombin
@@ -60,8 +62,25 @@ Va = 0;             % species 17
 VIIIa = 0;          % species 18
 y0_original = collect_initials;
 
+    function p = collect_params
+    % collect parameters for original model
+        p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
+             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
+    end
+
+    function y0 = collect_initials
+    % Collect species initial concentrations for original model
+        y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
+            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa];
+    end
+
+% ODE solver options
+tol = 1e-9;
+odeopts = odeset('RelTol',tol,'AbsTol',tol);
+tspan = [0, 250];
+
+%% Index Struct
 % Struct for easier indexing of specific species.
-ind = struct;
 ind.TF_VIIa = 1;
 ind.IX =  2;
 ind.X =  3;
@@ -81,33 +100,27 @@ ind.Xa = 16;
 ind.Va = 17;
 ind.VIIIa = 18;
 
-% ODE solver options
-tol = 1e-9;
-odeopts = odeset('RelTol',tol,'AbsTol',tol);
-tspan = [0, 250];
+%% Useful Calculations
+thromb_form = @(y) y(:, ind.mIIa) * 1.2 + y(:, ind.IIa);
 
-    function p = collect_params
-    % collect parameters for original model
-        p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
-    end
-
-    function y0 = collect_initials
-    % Collect species initial concentrations for original model
-        y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
-            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa];
-    end
-
-%% Figure 1
-    function [t, y] = fig1_protocol
+%% Figures
+    function figspec = fig1_protocol
         p = p_original;
         y0 = y0_original;
         y0(ind.TF_VIIa) = 5e-3; % nM
         [t, y] = ode15s(@odefun, tspan, y0, odeopts, p);
+        figspec.n = 1;
+        figspec.title = '1A: Thrombin Timcourse, Model Validation';
+        figspec.position = [3 640 606 324];
+        figspec.x = t;
+        figspec.y = thromb_form(y) / y0(ind.II) * 100;
+        figspec.xlabel = 'Time (seconds)';
+        figspec.ylabel = '% Thrombin Formation';
+        figspec.xlim = [0 250];
+        figspec.ylim = [0 120];
     end
 
-%% Figure 2
-    function [t, y] = fig2_protocol
+    function figspec = fig2_protocol
         p = p_original;
         p([1, 2, 20]) = [100, 1e3, 1e5];
         y0 = y0_original;
@@ -117,7 +130,16 @@ tspan = [0, 250];
 main;
 end
 
-%% ODE FUNCTION
+function fighand = makefigure(fs)
+fighand = setupfig(fs.n, fs.title, fs.position);
+plot(fs.x, fs.y);
+xlabel(fs.xlabel);
+ylabel(fs.ylabel);
+xlim(fs.xlim);
+ylim(fs.ylim);
+end
+
+%% ODE Function
 function ydot = odefun(~,y,p)
 
 % Collect param values in cell array and redefine params with names
