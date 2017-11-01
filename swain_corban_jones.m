@@ -13,8 +13,9 @@ function swain_corban_jones
 
     function main
         cleanup;
-%         close all;
+        close all;
         f1 = makefigure(fig1_protocol);
+        savefig(f1)
     end
 
 %% Parameters
@@ -215,7 +216,7 @@ ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
         dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa];
 end
 
-%% Corban Swain Utils
+%% Corban Swain Utilities
 function new_fig = setupfig(n,title,location)
 % SETUPFIGURE Sets up a new figure.
 %
@@ -256,7 +257,7 @@ if isempty(name)
     end
 else
     if ~isempty(f.Name)
-        name = [name, ' - ', f.Name];
+        name = [name, '-', f.Name];
     end
 end
 print(f,sprintf('Figures%s%s',filesep,name),'-dpng','-r300');
