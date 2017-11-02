@@ -19,7 +19,7 @@ function swain_corban_jones
         for i = 1:length(figures)
             fprintf('Running Figure %2d\n',i);
             fh = makefigure(figures{i});
-%             savefig(fh);
+            savefig(fh);
         end
     end
 
