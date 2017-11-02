@@ -181,7 +181,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         end
 
         fs.n = 1;
-        fs.title = 'Thrombin Timecourse, Model Validation';
+        fs.title = '1 - Thrombin Timecourse, Model Validation';
         fs.position = [3 384 473 571];
         fs.plots = {plotA, plotB};
         fs.sub = [2, 1];
@@ -227,7 +227,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         end
         
         fs.n = 2;
-        fs.title = 'Effecs of Stable VIIIa-IXa';
+        fs.title = '2 - Effecs of Stable VIIIa-IXa';
         fs.position = [478 161 447 794];
         fs.plots = {plotA, plotB, plotC};
         fs.sub = [3, 1];
