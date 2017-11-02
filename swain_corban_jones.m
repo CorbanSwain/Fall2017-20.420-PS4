@@ -17,7 +17,6 @@ function swain_corban_jones
         figures = {fig1, fig2};
         corban_figure_defaults;
         for i = 1:length(figures)
-            fprintf('Running Figure %2d\n',i);
             fh = makefigure(figures{i});
             savefig(fh);
         end
@@ -145,6 +144,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
 %% Figures
     function fs = fig1
+        fprintf('Running Figure %2d\n',1);
         ntrials = 3;
         initial_map = cell(1, ntrials);
         % Alternate 1: k7 = 1e6 1/M/s,  k9 = 5e-4 1/s
@@ -188,6 +188,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
     end
 
     function fs = fig2
+        fprintf('Running Figure %2d\n',2);
         ntrials = 2;
         initial_map = cell(1, ntrials);
         % Alternate 1: No Degradation of VIIIa-IXa
