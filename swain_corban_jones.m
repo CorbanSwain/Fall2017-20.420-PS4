@@ -14,11 +14,10 @@ function swain_corban_jones
     function main
         cleanup;
         close all;
-        figures = [fig1_protocol ...
-            ];
+        figures = {fig1A_protocol, fig1B_protocol};
         corban_figure_defaults;
-        for fig = figures
-            fh = makefigure(fig);
+        for i = 1:length(figures)
+            fh = makefigure(figures{i});
             savefig(fh);
         end
     end
@@ -83,7 +82,7 @@ y0_original = collect_initials;
 % ODE solver options
 tol = 1e-9;
 odeopts = odeset('RelTol',tol,'AbsTol',tol);
-tspan = [0, 250];
+tspan = [0, 240];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -108,41 +107,96 @@ ind.VIIIa = 18;
 
 %% Useful Calculations
 thromb_form = @(y) y(:, ind.mIIa) * 1.2 + y(:, ind.IIa);
+thromb_percent = @(y, II_0) thromb_form(y) / II_0 * 100;
+odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
 %% Figures
-    function figspec = fig1_protocol
+    function figspec = fig1A_protocol
         p = p_original;
         y0 = y0_original;
-        y0(ind.TF_VIIa) = 5e-3; % nM
-        [t, y] = ode15s(@odefun, tspan, y0, odeopts, p);
+        [t, y] = odesim(y0, p);
         figspec.n = 1;
         figspec.title = '1A-Thrombin Timecourse, Model Validation';
         figspec.position = [3 640 606 324];
         figspec.x = t;
-        figspec.y = thromb_form(y) / y0(ind.II) * 100;
+        figspec.y = thromb_percent(y, y0(ind.II));
         figspec.xlabel = 'Time (seconds)';
         figspec.ylabel = '% Thrombin Formation';
         figspec.xlim = [0 250];
         figspec.ylim = [0 120];
+        figspec.legend = {'Initial Model'};
+        figspec.legend_loc = 'northwest';
     end
 
-    function figspec = fig2_protocol
-        p = p_original;
-        p([1, 2, 20]) = [100, 1e3, 1e5];
+    function figspec = fig1B_protocol
+        ntrials = 3;
         y0 = y0_original;
-        [t, y] = ode15s(@odefun,tspan,y0,odeopts,p);
+        map = cell(ntrials,1);
+        % Trial 0: No Change
+        map{1} = [];
+        % Trial 1: k7 = 1e6 1/M/s,  k9 = 5e-4 1/s
+        map{2} = [...
+            7, 1e6 * 1e-9; ...
+            9, 5e-4];
+        % Trial 2: k8 = 4e7 1/M/s, k10 = 4e-2 1/s
+        map{3} = [...
+            8, 4e7 * 1e-9; ...
+            10, 4e-2];
+        for i=1:ntrials
+            p = p_original;
+            m = map{i};
+            if size(m,1) > 0 
+                p(m(:,1)) = m(:,2);
+            end
+            [t{i}, y{i}] = odesim(y0, p);
+        end
+        figspec.n = 2;
+        figspec.title = '1B-Thrombin Timecourse, Various Params';
+        figspec.position = [610 633 565 322];
+        figspec.x = t;
+        for i = 1:ntrials
+            figspec.y{i} = thromb_form(y{i}) ./ 1e3;
+        end
+        figspec.xlabel = 'Time (seconds)';
+        figspec.ylabel = 'Thrombin Formation (\muM)';
+        figspec.xlim = [0 250];
+        figspec.ylim = 'auto';
+        figspec.legend = {'Initial Model', 'Trial 1', 'Trial 2'};
+        figspec.legend_loc = 'northwest';
     end
 
 main;
 end
 
 function fighand = makefigure(fs)
-fighand = setupfig(fs.n, fs.title, fs.position);
-plot(fs.x, fs.y);
+if isfield(fs, 'position')
+    fighand = setupfig(fs.n, fs.title, fs.position);
+else
+    fighand = setupfig(fs.n, fs.title);
+end
+if iscell(fs.x) && iscell(fs.y)
+    n = length(fs.x);
+    if  n ~= length(fs.y)
+        error('x and y cell arrays have mismatched dimensions.');
+    end
+    for i = 1:n
+        plot(fs.x{i}, fs.y{i});
+    end
+else
+    if iscell(fs.x) || iscell(fs.y)
+        error('x and y values must both be matrices or cell arrays.');
+    end
+    plot(fs.x, fs.y);
+end
 xlabel(fs.xlabel);
 ylabel(fs.ylabel);
 xlim(fs.xlim);
 ylim(fs.ylim);
+leg = legend(fs.legend);
+legend('boxoff');
+if isfield(fs, 'legend_loc')
+    leg.Location = fs.legend_loc;
+end
 end
 
 %% ODE Function
