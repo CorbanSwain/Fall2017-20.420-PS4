@@ -234,46 +234,39 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         fs.sub = [3, 1];
     end
 
+    function fs = fig3
+        % TODO - Implement Figure 3 from coppyied Shell of Fig 2
+        fprintf('Running Figure %2d\n',3);
+        ntrials = 4;
+        initial_map = cell(1, ntrials);
+        % Alternate 1: No Degradation of VIIIa-IXa
+        param_map{2} = [...
+            9, 0, ...
+            20, 0];
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        
+        ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
+        ps_templ.legend_loc = 'northwest';
+        ps_templ.x = t;
+        ps_templ = plotdefaults(ps_templ);
+        
+        function ps = plotA
+            ps = ps_templ;
+            for i = 1:ntrials
+                ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
+            end
+            ps.ylabel = '% Thrombin Formation';
+            ps.ylim = [0 120];
+        end
+        
+        fs.n = 2;
+        fs.title = '2 - Effecs of Stable VIIIa-IXa';
+        fs.position = [478 161 447 794];
+        fs.plots = {plotA, plotB, plotC};
+        fs.sub = [3, 1];
+    end
+
 main;
-end
-
-function fighand = makefigure(fs)
-if isfield(fs, 'position')
-    fighand = setupfig(fs.n, fs.title, fs.position);
-else
-    fighand = setupfig(fs.n, fs.title);
-end
-for i = 1:length(fs.plots)
-    subplot(fs.sub(1), fs.sub(2), i);
-    hold on;
-    makeplot(fs.plots{i});
-end
-end
-
-function makeplot(ps)
-if iscell(ps.x) && iscell(ps.y)
-    n = length(ps.x);
-    if  n ~= length(ps.y)
-        error('x and y cell arrays have mismatched dimensions.');
-    end
-    for i = 1:n
-        plot(ps.x{i}, ps.y{i});
-    end
-else
-    if iscell(ps.x) || iscell(ps.y)
-        error('x and y values must both be matrices or cell arrays.');
-    end
-    plot(ps.x, ps.y);
-end
-xlabel(ps.xlabel);
-ylabel(ps.ylabel);
-xlim(ps.xlim);
-ylim(ps.ylim);
-leg = legend(ps.legend);
-legend('boxoff');
-if isfield(ps, 'legend_loc')
-    leg.Location = ps.legend_loc;
-end
 end
 
 %% ODE Function
@@ -350,6 +343,46 @@ dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa + k4*(VIII*IIa + VIII*mIIa);
 % Collect all ODEs for output
 ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
         dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa];
+end
+
+%% Figure Making Helper Functions
+function fighand = makefigure(fs)
+if isfield(fs, 'position')
+    fighand = setupfig(fs.n, fs.title, fs.position);
+else
+    fighand = setupfig(fs.n, fs.title);
+end
+for i = 1:length(fs.plots)
+    subplot(fs.sub(1), fs.sub(2), i);
+    hold on;
+    makeplot(fs.plots{i});
+end
+end
+
+function makeplot(ps)
+if iscell(ps.x) && iscell(ps.y)
+    n = length(ps.x);
+    if  n ~= length(ps.y)
+        error('x and y cell arrays have mismatched dimensions.');
+    end
+    for i = 1:n
+        plot(ps.x{i}, ps.y{i});
+    end
+else
+    if iscell(ps.x) || iscell(ps.y)
+        error('x and y values must both be matrices or cell arrays.');
+    end
+    plot(ps.x, ps.y);
+end
+xlabel(ps.xlabel);
+ylabel(ps.ylabel);
+xlim(ps.xlim);
+ylim(ps.ylim);
+leg = legend(ps.legend);
+legend('boxoff');
+if isfield(ps, 'legend_loc')
+    leg.Location = ps.legend_loc;
+end
 end
 
 %% Corban Swain Utilities
