@@ -13,12 +13,12 @@ function swain_corban_jones
 
     function main
         cleanup;
-%         close all;
-        figures = {fig2};
+        close all;
+        figures = {fig1, fig2};
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
-%             savefig(fh);
+            savefig(fh);
         end
     end
 
@@ -86,7 +86,7 @@ y0_original = collect_initials;
 tol = 1e-9;
 odeopts = odeset('RelTol',tol,'AbsTol',tol,...
     'NonNegative',1:length(y0_original));
-tspan = [0, 230];
+tspan = [0, 240];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -138,14 +138,10 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
             im = initial_maps{i};
             if size(im,1) > 0
                 y0{i}(im(:,1)) = im(:, 2);
-                display(im)
-                display(y0{i})
             end
             pm = param_maps{i};
             if size(pm,1) > 0 
                 p{i}(pm(:,1)) = pm(:,2);
-                display(pm)
-                display(p{i})
             end
             [t{i}, y{i}] = odesim(y0{i}, p{i});
         end
@@ -239,7 +235,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         
         fs.n = 2;
         fs.title = '2 - Effecs of Stable VIIIa-IXa';
-%         fs.position = [478 161 447 794];
+        fs.position = [478 161 447 794];
         fs.plots = {plotA, plotB, plotC};
         fs.sub = [3, 1];
     end
@@ -382,6 +378,7 @@ end
 end
 
 function makeplot(ps)
+grid on;
 if iscell(ps.x) && iscell(ps.y)
     n = length(ps.x);
     if  n ~= length(ps.y)
@@ -401,7 +398,8 @@ ylabel(ps.ylabel);
 xlim(ps.xlim);
 ylim(ps.ylim);
 leg = legend(ps.legend);
-legend('boxoff');
+legend('boxon');
+leg.LineWidth = 0.5;
 if isfield(ps, 'legend_loc')
     leg.Location = ps.legend_loc;
 end
@@ -416,7 +414,7 @@ function new_fig = setupfig(n,title,location)
 % location: figure position, [left bottom width height]
 %
 new_fig = figure(n); clf; hold on;
-box off;
+box off; grid on;
 new_fig.Name = title;
 if nargin > 2
     new_fig.Position = location;
