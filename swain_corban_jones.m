@@ -13,12 +13,12 @@ function swain_corban_jones
 
     function main
         cleanup;
-        close all;
-        figures = {fig1, fig2};
+%         close all;
+        figures = {fig2};
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
-            savefig(fh);
+%             savefig(fh);
         end
     end
 
@@ -44,6 +44,7 @@ k17 = 44;   % [1/s]   - off-rate for X on TF-VIIa complex
 k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
+k21 = 1;
 p_original = collect_params;
 
 % Initial concentrations in [nM] (GET from Lawson et al. 1994)
@@ -65,24 +66,27 @@ IXa = 0;            % species 15
 Xa = 0;             % species 16
 Va = 0;             % species 17
 VIIIa = 0;          % species 18
+I = 5e-3;
 y0_original = collect_initials;
 
     function p = collect_params
     % collect parameters for original model
         p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
+             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,...
+             k21];
     end
 
     function y0 = collect_initials
     % Collect species initial concentrations for original model
         y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
-            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa];
+            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I];
     end
 
 % ODE solver options
 tol = 1e-9;
-odeopts = odeset('RelTol',tol,'AbsTol',tol);
-tspan = [0, 240];
+odeopts = odeset('RelTol',tol,'AbsTol',tol,...
+    'NonNegative',1:length(y0_original));
+tspan = [0, 230];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -104,6 +108,7 @@ ind.IXa = 15;
 ind.Xa = 16;
 ind.Va = 17;
 ind.VIIIa = 18;
+ind.I = 19;
 
 %% Useful Calculations
 col_sum = @(X,cols) sum(X(:,cols),2);
@@ -133,10 +138,14 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
             im = initial_maps{i};
             if size(im,1) > 0
                 y0{i}(im(:,1)) = im(:, 2);
+                display(im)
+                display(y0{i})
             end
             pm = param_maps{i};
             if size(pm,1) > 0 
                 p{i}(pm(:,1)) = pm(:,2);
+                display(pm)
+                display(p{i})
             end
             [t{i}, y{i}] = odesim(y0{i}, p{i});
         end
@@ -191,10 +200,11 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         fprintf('Running Figure %2d\n',2);
         ntrials = 2;
         initial_map = cell(1, ntrials);
+        param_map = initial_map;
         % Alternate 1: No Degradation of VIIIa-IXa
         param_map{2} = [...
-            9, 0, ...
-            20, 0];
+            20, 0; ...
+            21, 0];
         [t, y, y0] = sim_from_maps(initial_map, param_map);
         
         ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
@@ -229,7 +239,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         
         fs.n = 2;
         fs.title = '2 - Effecs of Stable VIIIa-IXa';
-        fs.position = [478 161 447 794];
+%         fs.position = [478 161 447 794];
         fs.plots = {plotA, plotB, plotC};
         fs.sub = [3, 1];
     end
@@ -270,17 +280,18 @@ main;
 end
 
 %% ODE Function
-function ydot = odefun(~,y,p)
+function ydot = odefun(t,y,p)
 
+t;
 % Collect param values in cell array and redefine params with names
 paramsCell = num2cell(p);
 [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
- k11,k12,k13,k14,k15,k16,k17,k18,k19,k20]=paramsCell{:};
+ k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,k21]=paramsCell{:};
 
 % Collect y-vals in cell array and redefine y-vals with names
 yCell = num2cell(y);
 [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
- TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa] = yCell{:};
+ TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I] = yCell{:};
 
 %%% ODEs %%%
 
@@ -304,11 +315,17 @@ dVIII = -k3*VIII*Xa - k4*VIII*IIa - k4*VIII*mIIa;
 dII = k19*Va_Xa_II - k6*Va_Xa*II;
 
 % VIIIa-IXa (first-order deg) - species 7 
-dVIIIa_IXa = k7*VIIIa*IXa - k9*VIIIa_IXa - k6*VIIIa_IXa*X + ...
-             k18*VIIIa_IXa_X + k13*VIIIa_IXa_X - k20*VIIIa_IXa;
+if k21 && (I < VIIIa_IXa)
+    dVIIIa_IXa = 0;
+else
+    dVIIIa_IXa = k7*VIIIa*IXa - k9*VIIIa_IXa - k6*VIIIa_IXa*X ...
+        + k18*VIIIa_IXa_X + k13*VIIIa_IXa_X ...
+        + k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
+end
 
 % Va-Xa (incorrect in original paper) - species 8
-dVa_Xa = k8*Xa*Va - k10*Va_Xa + k19*Va_Xa_II - k6*Va_Xa*II + k14*Va_Xa_II;
+dVa_Xa = k8*Xa*Va - k10*Va_Xa + k19*Va_Xa_II ...
+    - k6*Va_Xa*II + k14*Va_Xa_II;
 
 % IIa - species 9
 dIIa = k5*Va_Xa*mIIa;
@@ -329,7 +346,8 @@ dTF_VIIa_X = k6*TF_VIIa*X - k17*TF_VIIa_X - k12*TF_VIIa_X;
 dVIIIa_IXa_X = k6*VIIIa_IXa*X - k18*VIIIa_IXa_X - k13*VIIIa_IXa_X;
 
 % IXa - species 15
-dIXa = k9*VIIIa_IXa - k7*VIIIa*IXa + k11*TF_VIIa_IX + k15*(IX*Xa + IX*Va_Xa);
+dIXa = k9*VIIIa_IXa - k7*VIIIa*IXa + k11*TF_VIIa_IX ...
+    + k15*(IX*Xa + IX*Va_Xa);
 
 % Xa (incorrect in original paper: k8 should be used) - species 16
 dXa = k10*Va_Xa - k8*Xa*Va + k12*TF_VIIa_X + k13*VIIIa_IXa_X;
@@ -338,11 +356,15 @@ dXa = k10*Va_Xa - k8*Xa*Va + k12*TF_VIIa_X + k13*VIIIa_IXa_X;
 dVa = k10*Va_Xa - k8*Xa*Va + k1*V*Xa + k2*V*IIa + k2*V*mIIa;
 
 % VIIIa - species 18
-dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa + k4*(VIII*IIa + VIII*mIIa);
+dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa ...
+    + k4*(VIII*IIa + VIII*mIIa);
+
+% maximal VIIIa_IXa
+dI = k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
 
 % Collect all ODEs for output
 ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
-        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa];
+        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa;dI];
 end
 
 %% Figure Making Helper Functions
