@@ -14,7 +14,7 @@ function swain_corban_jones
     function main
         cleanup;
         close all;
-        figures = {fig1, fig2};
+        figures = {fig1, fig2, fig3};
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
@@ -242,34 +242,30 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
     function fs = fig3
         % TODO - Implement Figure 3 from coppyied Shell of Fig 2
-        fprintf('Running Figure %2d\n',3);
-        ntrials = 4;
-        initial_map = cell(1, ntrials);
-        % Alternate 1: No Degradation of VIIIa-IXa
-        param_map{2} = [...
-            9, 0, ...
-            20, 0];
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        fignum = 3;
+        fprintf('Running Figure %2d\n', fignum);
+        y0 = y0_original;
+        p = p_original;
+        [t, y] = odesim(y0, p);
+
+        ps = struct;
+        ps = plotdefaults(ps);
+        ps.x = t;
+        ps.y(:,1) = thromb_percent(y, y0(ind.II));
+        ps.y(:,2) = Xa_percent(y, y0(ind.X));
+        ps.y(:,3) = IXa_percent(y, y0(ind.IX));
+        ps.y(:,4) = y(:, ind.V) / y0(ind.V) * 100;
+        ps.y(:,5) = y(:, ind.VIII) / y0(ind.VIII) * 100;
+        ps.ylabel = '% Formation / Degradation ';
+        ps.ylim = [0 120];
+        ps.legend = {'Thrombin', 'Xa', 'IXa', 'V', 'VIII'};
+        ps.legend_loc = 'east';
         
-        ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
-        ps_templ.legend_loc = 'northwest';
-        ps_templ.x = t;
-        ps_templ = plotdefaults(ps_templ);
-        
-        function ps = plotA
-            ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
-            end
-            ps.ylabel = '% Thrombin Formation';
-            ps.ylim = [0 120];
-        end
-        
-        fs.n = 2;
-        fs.title = '2 - Effecs of Stable VIIIa-IXa';
-        fs.position = [478 161 447 794];
-        fs.plots = {plotA, plotB, plotC};
-        fs.sub = [3, 1];
+        fs.n = fignum;
+        fs.title = sprintf('%d - Species Timecourses', fignum);
+        fs.position = [927 648 446 307];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
     end
 
 main;
