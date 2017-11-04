@@ -12,15 +12,16 @@ function swain_corban_jones
 % November 2017
 
     function main
-        cleanup;
-        close all;
-        figures = {fig1, fig2, fig3, fig4, fig5};
-%         figures = {fig5};
+        cleanup; close all;
+        fprintf('Beginning Script ...\n');
+        figures = {fig1, fig2, fig3, fig4, fig5, fig6};
         corban_figure_defaults;
         for i = 1:length(figures)
+            fprintf('Drawing Figure %2d\n', figures{i}.n);
             fh = makefigure(figures{i});
-%             savefig(fh);
+            savefig(fh);
         end
+        fprintf('Done!\n');
     end
 
 %% Parameters
@@ -45,7 +46,6 @@ k17 = 44;   % [1/s]   - off-rate for X on TF-VIIa complex
 k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
-do_limit_VIIIa_IXa  = 1; % 1 for limiting VII_IXa by I 0 for no limiting
 p_original = collect_params;
 
 % Initial concentrations in [nM] (GET from Lawson et al. 1994)
@@ -73,8 +73,7 @@ y0_original = collect_initials;
     function p = collect_params
     % collect parameters for original model
         p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,...
-             do_limit_VIIIa_IXa ];
+             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
     end
 
     function y0 = collect_initials
@@ -150,7 +149,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
 %% Figures
     function fs = fig1
-        fignum = 1
+        fignum = 1;
         fprintf('Running Figure %2d\n', fignum);
         ntrials = 3;
         initial_map = cell(1, ntrials);
@@ -203,10 +202,8 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         ntrials = 2;
         initial_map = cell(1, ntrials);
         param_map = initial_map;
-        % Alternate 1: No Degradation of VIIIa-IXa
-        param_map{2} = [...
-            20, 0; ...
-            21, 0];
+        % No Degradation of VIIIa-IXa
+        param_map{2} = [20, 0];
         [t, y, y0] = sim_from_maps(initial_map, param_map);
         
         ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
@@ -247,7 +244,6 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
     end
 
     function fs = fig3
-        % TODO - Implement Figure 3 from coppyied Shell of Fig 2
         fignum = 3;
         fprintf('Running Figure %2d\n', fignum);
         y0 = y0_original;
@@ -292,7 +288,6 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         for i = 1:ntrials
             ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
         end
-        % TODO - Add Figure Title
         ps.legend = {'Initial Model (5 pM)',...
             '10 pM', '50 pM', '500 pM', '5 nM'};
         ps.legend_loc = 'southeast';
@@ -355,6 +350,34 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         fs.sub = [2, 1];
     end
 
+    function fs = fig6
+        fignum = 6;
+        fprintf('Running Figure %2d\n', fignum);
+        ntrials = 4;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        param_map{2} = [2, 0];
+        param_map{3} = [1, 0];
+        param_map{4} = [4, 0];
+        [t, y] = sim_from_maps(initial_map, param_map);
+        
+        ps = plotdefaults(struct);
+        ps.x = t;
+        for i = 1:ntrials
+            ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
+        end
+        ps.legend = {'Initial Model',...
+            'k_2 = 0', 'k_1 = 0', 'k_4 = 0'};
+        ps.legend_loc = 'northwest';
+        ps.ylabel = 'Thrombin Formation (\muM)';
+        ps.ylim = [0 1.6];
+        
+        fs.n = fignum;
+        fs.title = sprintf('%d - Contributions of IIa and Xa',fignum);
+        fs.position = [1374 8 474 303];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
+    end
 
 main;
 end
@@ -362,11 +385,11 @@ end
 %% ODE Function
 function ydot = odefun(t,y,p)
 
-t;
+
 % Collect param values in cell array and redefine params with names
 paramsCell = num2cell(p);
 [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
- k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,do_limit_VIIIa_IXa ]=paramsCell{:};
+ k11,k12,k13,k14,k15,k16,k17,k18,k19,k20]=paramsCell{:};
 
 % Collect y-vals in cell array and redefine y-vals with names
 yCell = num2cell(y);
@@ -395,7 +418,7 @@ dVIII = -k3*VIII*Xa - k4*VIII*IIa - k4*VIII*mIIa;
 dII = k19*Va_Xa_II - k6*Va_Xa*II;
 
 % VIIIa-IXa - species 7 
-if do_limit_VIIIa_IXa  && (I < VIIIa_IXa)
+if (k20)  && (I < VIIIa_IXa)
     dVIIIa_IXa = 0;
 else
     dVIIIa_IXa = k7*VIIIa*IXa - k9*VIIIa_IXa - k6*VIIIa_IXa*X ...
