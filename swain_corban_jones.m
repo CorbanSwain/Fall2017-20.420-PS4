@@ -14,7 +14,8 @@ function swain_corban_jones
     function main
         cleanup;
         close all;
-        figures = {fig1, fig2, fig3, fig4};
+        figures = {fig1, fig2, fig3, fig4, fig5};
+%         figures = {fig5};
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
@@ -292,9 +293,10 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
             ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
         end
         % TODO - Add Figure Title
-        ps.legend = {'Initial Model (5 pm)',...
-            '10 pm', '50 pm', '500 pm', '5 nm'};
+        ps.legend = {'Initial Model (5 pM)',...
+            '10 pM', '50 pM', '500 pM', '5 nM'};
         ps.legend_loc = 'southeast';
+        ps.legend_title = '[TF-VIIa]_{0}';
         ps.ylabel = 'Thrombin Formation (\muM)';
         ps.ylim = [0 1.6];
         
@@ -308,50 +310,49 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
     function fs = fig5
         fignum = 5;
         fprintf('Running Figure %2d\n',fignum);
-        ntrials = 2;
+        ntrials = 6;
         initial_map = cell(1, ntrials);
         param_map = initial_map;
-        % Alternate 1: No Degradation of VIIIa-IXa
-        param_map{2} = [...
-            20, 0; ...
-            21, 0];
+        no_VIII = [ind.VIII, 0];
+        no_V = [ind.V, 0];
+        high_TF_VIIa = [ind.TF_VIIa, 1]; % nM
+        initial_map{2} = no_VIII;
+        initial_map{3} = no_V;
+        for i = 1:3
+            initial_map{i + 3} = [high_TF_VIIa; initial_map{i}];
+        end
         [t, y, y0] = sim_from_maps(initial_map, param_map);
         
-        ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
-        ps_templ.legend_loc = 'northwest';
-        ps_templ.x = t;
-        ps_templ = plotdefaults(ps_templ);
+        ps_templ = plotdefaults(struct);
+        ps_templ.legend = {'Initial Model','No VIII', 'No V'};
+        ps_templ.ylabel = 'Thrombin Formation (\muM)';
+        ps_templ.ylim = [0 1.6];
         
         function ps = plotA
             ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II)); 
+            for j = 1:3
+                ps.y{j} = thromb_activity(y{j}) ./ 1e3; 
+                ps.x{j} = t{j};
             end
-            ps.ylabel = '% Thrombin Formation';
-            ps.ylim = [0 120];
+            ps.legend_loc = 'northwest';
+            ps.legend_title = '[TF-VIIa]_{0} = 5 pM';
         end
+        b_indexes = 4:6;
         function ps = plotB
             ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = Xa_percent(y{i}, y0{i}(ind.X)); 
+            for j = 1:3
+                ps.y{j} = thromb_activity(y{b_indexes(j)}) ./ 1e3;
+                ps.x{j} = t{b_indexes(j)};
             end
-            ps.ylabel = '% Xa Formation';
-            ps.ylim = [0 100];
-        end
-        function ps = plotC
-            ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = IXa_percent(y{i}, y0{i}(ind.IX)); 
-            end
-            ps.ylabel = '% IXa Formation';
-            ps.ylim = [0 70];
+            ps.legend_loc = 'southeast';
+            ps.legend_title = '[TF-VIIa]_{0} = 1 nM';
         end
 
         fs.n = fignum;
-        fs.title = sprintf('%d - Effecs of Stable VIIIa-IXa',fignum);
-        fs.position = [478 161 447 794];
-        fs.plots = {plotA, plotB, plotC};
-        fs.sub = [3, 1];
+        fs.title = sprintf('%d - Effecs of Pro-cofactors', fignum);
+        fs.position = [1374 385 474 570];
+        fs.plots = {plotA, plotB};
+        fs.sub = [2, 1];
     end
 
 
@@ -481,7 +482,9 @@ ylabel(ps.ylabel);
 xlim(ps.xlim);
 ylim(ps.ylim);
 leg = legend(ps.legend);
-legend('boxon');
+if isfield(ps, 'legend_title')
+    title(leg, ps.legend_title);
+end
 leg.LineWidth = 0.5;
 if isfield(ps, 'legend_loc')
     leg.Location = ps.legend_loc;
