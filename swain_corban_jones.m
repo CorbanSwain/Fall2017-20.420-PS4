@@ -14,7 +14,7 @@ function swain_corban_jones
     function main
         cleanup;
         close all;
-        figures = {fig1, fig2, fig3};
+        figures = {fig1, fig2, fig3, fig4};
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
@@ -264,6 +264,37 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         fs.n = fignum;
         fs.title = sprintf('%d - Species Timecourses', fignum);
         fs.position = [927 648 446 307];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
+    end
+
+    function fs = fig4
+        fignum = 4;
+        fprintf('Running Figure %2d\n', fignum);
+        TF_VIIa_initials = [10e-3, 50e-3, 500e-3, 5]; % nM
+        ntrials = length(TF_VIIa_initials) + 1;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        for i = 1:(ntrials - 1)
+            initial_map{i + 1}  = [ind.TF_VIIa, TF_VIIa_initials(i)];
+        end
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        
+        ps = struct;
+        ps = plotdefaults(ps);
+        ps.x = t;
+        for i = 1:ntrials
+            ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
+        end
+        ps.legend = {'Initial Model (5 pm)',...
+            '10 pm', '50 pm', '500 pm', '5 nm'};
+        ps.legend_loc = 'southeast';
+        ps.ylabel = 'Thrombin Formation (\muM)';
+        ps.ylim = [0 1.6];
+        
+        fs.n = fignum;
+        fs.title = sprintf('%d - Effecs Increasing TF-VIIa',fignum);
+        fs.position = [926 245 447 329];
         fs.plots = {ps};
         fs.sub = [1, 1];
     end
