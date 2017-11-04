@@ -18,7 +18,7 @@ function swain_corban_jones
         corban_figure_defaults;
         for i = 1:length(figures)
             fh = makefigure(figures{i});
-            savefig(fh);
+%             savefig(fh);
         end
     end
 
@@ -44,7 +44,7 @@ k17 = 44;   % [1/s]   - off-rate for X on TF-VIIa complex
 k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
-k21 = 1;
+do_limit_VIIIa_IXa  = 1; % 1 for limiting VII_IXa by I 0 for no limiting
 p_original = collect_params;
 
 % Initial concentrations in [nM] (GET from Lawson et al. 1994)
@@ -73,7 +73,7 @@ y0_original = collect_initials;
     % collect parameters for original model
         p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
              k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,...
-             k21];
+             do_limit_VIIIa_IXa ];
     end
 
     function y0 = collect_initials
@@ -149,9 +149,11 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
 %% Figures
     function fs = fig1
-        fprintf('Running Figure %2d\n',1);
+        fignum = 1
+        fprintf('Running Figure %2d\n', fignum);
         ntrials = 3;
         initial_map = cell(1, ntrials);
+        param_map = initial_map;
         % Alternate 1: k7 = 1e6 1/M/s,  k9 = 5e-4 1/s
         param_map{2} = [...
             7, 1e6 * 1e-9; ...
@@ -179,21 +181,24 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
             end
             ps = plotdefaults(ps);
             ps.ylabel = 'Thrombin Formation (\muM)';
-            ps.ylim = 'auto';
+            ps.ylim = [0 1.6];
             ps.legend = {'Initial Model', 'Alternate 1', ...
                 'Alternate 2'};
             ps.legend_loc = 'northwest';
         end
 
-        fs.n = 1;
-        fs.title = '1 - Thrombin Timecourse, Model Validation';
+        fs.n = fignum;
+        fs.title = sprintf(['%d - Thrombin Timecourse,', ...
+            'Model Validation'], ...
+            fignum);
         fs.position = [3 384 473 571];
         fs.plots = {plotA, plotB};
         fs.sub = [2, 1];
     end
 
     function fs = fig2
-        fprintf('Running Figure %2d\n',2);
+        fignum = 2;
+        fprintf('Running Figure %2d\n',fignum);
         ntrials = 2;
         initial_map = cell(1, ntrials);
         param_map = initial_map;
@@ -232,9 +237,9 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
             ps.ylabel = '% IXa Formation';
             ps.ylim = [0 70];
         end
-        
-        fs.n = 2;
-        fs.title = '2 - Effecs of Stable VIIIa-IXa';
+
+        fs.n = fignum;
+        fs.title = sprintf('%d - Effecs of Stable VIIIa-IXa',fignum);
         fs.position = [478 161 447 794];
         fs.plots = {plotA, plotB, plotC};
         fs.sub = [3, 1];
@@ -286,6 +291,7 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         for i = 1:ntrials
             ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
         end
+        % TODO - Add Figure Title
         ps.legend = {'Initial Model (5 pm)',...
             '10 pm', '50 pm', '500 pm', '5 nm'};
         ps.legend_loc = 'southeast';
@@ -299,6 +305,56 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
         fs.sub = [1, 1];
     end
 
+    function fs = fig5
+        fignum = 5;
+        fprintf('Running Figure %2d\n',fignum);
+        ntrials = 2;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        % Alternate 1: No Degradation of VIIIa-IXa
+        param_map{2} = [...
+            20, 0; ...
+            21, 0];
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        
+        ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
+        ps_templ.legend_loc = 'northwest';
+        ps_templ.x = t;
+        ps_templ = plotdefaults(ps_templ);
+        
+        function ps = plotA
+            ps = ps_templ;
+            for i = 1:ntrials
+                ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II)); 
+            end
+            ps.ylabel = '% Thrombin Formation';
+            ps.ylim = [0 120];
+        end
+        function ps = plotB
+            ps = ps_templ;
+            for i = 1:ntrials
+                ps.y{i} = Xa_percent(y{i}, y0{i}(ind.X)); 
+            end
+            ps.ylabel = '% Xa Formation';
+            ps.ylim = [0 100];
+        end
+        function ps = plotC
+            ps = ps_templ;
+            for i = 1:ntrials
+                ps.y{i} = IXa_percent(y{i}, y0{i}(ind.IX)); 
+            end
+            ps.ylabel = '% IXa Formation';
+            ps.ylim = [0 70];
+        end
+
+        fs.n = fignum;
+        fs.title = sprintf('%d - Effecs of Stable VIIIa-IXa',fignum);
+        fs.position = [478 161 447 794];
+        fs.plots = {plotA, plotB, plotC};
+        fs.sub = [3, 1];
+    end
+
+
 main;
 end
 
@@ -309,7 +365,7 @@ t;
 % Collect param values in cell array and redefine params with names
 paramsCell = num2cell(p);
 [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
- k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,k21]=paramsCell{:};
+ k11,k12,k13,k14,k15,k16,k17,k18,k19,k20,do_limit_VIIIa_IXa ]=paramsCell{:};
 
 % Collect y-vals in cell array and redefine y-vals with names
 yCell = num2cell(y);
@@ -337,8 +393,8 @@ dVIII = -k3*VIII*Xa - k4*VIII*IIa - k4*VIII*mIIa;
 % II - species 6
 dII = k19*Va_Xa_II - k6*Va_Xa*II;
 
-% VIIIa-IXa (first-order deg) - species 7 
-if k21 && (I < VIIIa_IXa)
+% VIIIa-IXa - species 7 
+if do_limit_VIIIa_IXa  && (I < VIIIa_IXa)
     dVIIIa_IXa = 0;
 else
     dVIIIa_IXa = k7*VIIIa*IXa - k9*VIIIa_IXa - k6*VIIIa_IXa*X ...
