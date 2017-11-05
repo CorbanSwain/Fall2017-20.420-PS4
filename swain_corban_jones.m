@@ -67,7 +67,7 @@ IXa = 0;            % species 15
 Xa = 0;             % species 16
 Va = 0;             % species 17
 VIIIa = 0;          % species 18
-I = 5e-3;
+I = 5e-3;           % upper limit on factor VIIIa_IXa
 y0_original = collect_initials;
 
     function p = collect_params
