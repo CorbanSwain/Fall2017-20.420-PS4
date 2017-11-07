@@ -1,4 +1,4 @@
-function swain_corban_jones
+function swain_corban_jones_mod
 % Implementation of Tissue Factor Pathway to Thrombin model for course
 % 20.420 - October, 2015
 %
@@ -12,7 +12,7 @@ function swain_corban_jones
 % November 2017
 
     function main
-        cleanup; close all;
+        cleanup; % close all;
         fprintf('Beginning Script ...\n');
         figs_to_plot = 1;
         corban_figure_defaults;
@@ -20,7 +20,7 @@ function swain_corban_jones
             fs = figures.(sprintf('f%d', i))();
             fprintf('Drawing Figure %2d\n', i);
             fh = makefigure(fs); figure(fh);
-%             savefig(fh);
+            savefig(fh);
         end
         fprintf('Done!\n');
     end
@@ -48,8 +48,9 @@ k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
 km1 = 8.1e-3;
+km1_2 = km1*0.1;
 km2 = 1e-2;
-km3 = 1e-3;
+km3 = 0.5e-3;
 km4 = km2;
 km5 = km3;
 km6 = 1e-2;
@@ -77,7 +78,7 @@ Xa = 0;             % species 16
 Va = 0;             % species 17
 VIIIa = 0;          % species 18
 I = 5e-3;           % upper limit on factor VIIIa_IXa
-S = 300;
+S = 332;
 PC = 65;
 APC = 0;
 APC_S = 0;
@@ -88,7 +89,7 @@ y0_original = collect_initials;
     % collect parameters for original model
         p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
              k11,k12,k13,k14,k15,k16,k17,k18,k19,k20, ...
-             km1,km2,km3,km4,km5,km6,km7,km8];
+             km1,km1_2,km2,km3,km4,km5,km6,km7,km8];
     end
 
     function y0 = collect_initials
@@ -142,8 +143,8 @@ IXa_percent = @(y, IX_0) IXa_activity(y) / IX_0 * 100;
 odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
     function ps_out = plotdefaults(ps_in)
-        ps_in.xlim = tspan;
-        ps_in.xlabel = 'Time (s)';
+        ps_in.xlim = tspan / 60;
+        ps_in.xlabel = 'Time (min)';
         ps_out = ps_in;
     end
 
@@ -175,25 +176,38 @@ figures.f1 = @fig1;
     function fs = fig1
         fignum = 1;
         fprintf('Running Figure %2d\n', fignum);
-        ntrials = 1;
+        ntrials = 4;
         initial_map = cell(1, ntrials);
         param_map = initial_map;
- 
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        species_incr = ["V";"VIII";"IX";"X";"PC"];
+        n1 = length(species_incr);
+        initial_map{2} = zeros(n1, 2);
+        for i = 1:n1
+            index = ind.(species_incr(i));
+            initial_map{2}(i, :) = [index, y0_original(index) * 1.3];
+        end
+        initial_map{3} = [initial_map{2}; ...
+            ind.S, y0_original(ind.S) * 0.8];
+        initial_map{4} = [initial_map{3}; ...
+            ind.TF_VIIa, y0_original(ind.TF_VIIa) * 1.30];
         
-        ps.x = t{1};
-        ps.y = thromb_percent(y{1}, y0{1}(ind.II));
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        for i = 1:ntrials
+            ps.x{i} = t{i} / 60;
+            ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
+        end
         ps = plotdefaults(ps);
         ps.ylabel = '% Thrombin Formation';
-        ps.ylim = [0 120];
-        ps.legend = {'Initial Model'};
-        ps.legend_loc = 'northwest';
+        ps.ylim = 'auto';
+        ps.legend = {'None'; 'Progestrin'; 'Levono./Noreth.'; ...
+            'Deso./Gesto.'};
+        ps.legend_title = 'Contrtaceptive';
+        ps.legend_loc = 'southeast';
 
         fs.n = fignum;
-        fs.title = sprintf(['%d - Thrombin Timecourse, ', ...
-            'Model Validation'], ...
+        fs.title = sprintf('MOD%d - Effects of Contraceptives', ...
             fignum);
-        fs.position = [3 384 473 571];
+        fs.position = [3 548 929 407];
         fs.plots = {ps};
         fs.sub = [1, 1];
     end
@@ -206,7 +220,7 @@ function ydot = odefun(~,y,p)
 paramsCell = num2cell(p);
 [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10, ...
  k11,k12,k13,k14,k15,k16,k17,k18,k19,k20, ...
- km1,km2,km3,km4,km5,km6,km7,km8]=paramsCell{:};
+ km1,km1_2,km2,km3,km4,km5,km6,km7,km8]=paramsCell{:};
 
 % dS;dPC;dAPC;dAPC_S;dAPC_S_V
 
@@ -287,8 +301,9 @@ dI = k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
 
 
 % MODIFICATIONS
-% V recycling upon APC complex dissosiation
+% recycling upon APC complex dissosiation
 dV = dV + km8 * APC_S_V;
+dXa = dXa + km6 * Va_Xa * APC_S + km6 * APC_S_V * Va_Xa;
 
 % Va Inactivation
 dVa = dVa - km6 * APC_S * Va - km6 * APC_S_V * Va;
@@ -298,10 +313,10 @@ dVa_Xa = dVa_Xa - km6 * APC_S * Va_Xa - km6 * APC_S_V * Va_Xa;
 dTF_VIIa = dTF_VIIa - km7 * APC_S_V * TF_VIIa;
 
 % Protein C
-dPC = -km1 * PC * mIIa - km1 * PC * IIa + km8 * (APC + APC_S + APC_S_V);
+dPC = -km1_2 * PC * mIIa - km1 * PC * IIa + km8 * (APC + APC_S + APC_S_V);
 
 % active protein c
-dAPC = km1 * PC * mIIa + km1 * PC * IIa - km2 * APC * S + km3 * APC_S ...
+dAPC = km1_2 * PC * mIIa + km1 * PC * IIa - km2 * APC * S + km3 * APC_S ...
     - km8 * APC;
 
 % active protein c - s
