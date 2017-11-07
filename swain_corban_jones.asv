@@ -14,12 +14,11 @@ function swain_corban_jones
     function main
         cleanup; close all;
         fprintf('Beginning Script ...\n');
-        figs_to_plot = 1:6;
+        figures = {fig1, fig2, fig3, fig4, fig5, fig6};
         corban_figure_defaults;
-        for i = figs_to_plot
-            fs = figures.(sprintf('f%d', i))();
-            fprintf('Drawing Figure %2d\n', i);
-            fh = makefigure(fs); figure(fh);
+        for i = 1:length(figures)
+            fprintf('Drawing Figure %2d\n', figures{i}.n);
+            fh = makefigure(figures{i});
 %             savefig(fh);
         end
         fprintf('Done!\n');
@@ -357,7 +356,6 @@ figures.f5 = @fig5;
         fs.sub = [2, 1];
     end
 
-figures.f6 = @fig6;
     function fs = fig6
         fignum = 6;
         fprintf('Running Figure %2d\n', fignum);
@@ -390,7 +388,8 @@ figures.f6 = @fig6;
 main;
 end
 
-function ydot = odefun(~,y,p)
+%% ODE Function
+function ydot = odefun(t,y,p)
 
 
 % Collect param values in cell array and redefine params with names
