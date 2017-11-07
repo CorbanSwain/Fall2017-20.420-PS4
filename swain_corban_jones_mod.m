@@ -14,7 +14,7 @@ function swain_corban_jones_mod
     function main
         cleanup; % close all;
         fprintf('Beginning Script ...\n');
-        figs_to_plot = 1;
+        figs_to_plot = 1:2;
         corban_figure_defaults;
         for i = figs_to_plot
             fs = figures.(sprintf('f%d', i))();
@@ -103,7 +103,7 @@ y0_original = collect_initials;
 tol = 1e-9;
 odeopts = odeset('RelTol',tol,'AbsTol',tol,...
     'NonNegative',1:length(y0_original));
-tspan = [0, 1e3];
+tspan = [0, 3e3];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -172,9 +172,9 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 %% Figures
 figures = struct;
 
-figures.f1 = @fig1;
-    function fs = fig1
-        fignum = 1;
+figures.f2 = @fig2;
+    function fs = fig2
+        fignum = 2;
         fprintf('Running Figure %2d\n', fignum);
         ntrials = 4;
         initial_map = cell(1, ntrials);
@@ -208,6 +208,35 @@ figures.f1 = @fig1;
         fs.title = sprintf('MOD%d - Effects of Contraceptives', ...
             fignum);
         fs.position = [3 548 929 407];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
+    end
+
+figures.f1 = @fig1;
+    function fs = fig1
+        fignum = 1;
+        fprintf('Running Figure %2d\n', fignum);
+        ntrials = 2;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        param_map{1} = [(21:29)', zeros(9, 1)];
+        
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        for i = 1:ntrials
+            ps.x{i} = t{i};
+            ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
+        end
+        ps = plotdefaults(ps);
+        ps.ylabel = '% Thrombin Formation';
+        ps.ylim = [0 120];
+        ps.xlim = [0, 250];
+        ps.legend = {'Initial Model'; 'Anticoagulation Model'};
+        ps.legend_loc = 'east';
+
+        fs.n = fignum;
+        fs.title = sprintf('MOD%d - Anti Coagulation Model', ...
+            fignum);
+        fs.position = [1000 548 929 407];
         fs.plots = {ps};
         fs.sub = [1, 1];
     end
@@ -459,7 +488,7 @@ end
 
 function corban_figure_defaults
 % CORBANFIGUREDEFAULTS Sets default values to make pretty figures.
-fontSize = 12;
+fontSize = 13;
 font = 'Helvetica';
 set(groot, ...
     'defaultLineMarkerSize', 40,...
