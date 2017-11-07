@@ -128,6 +128,10 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
     end
 
     function [t, y, y0, p] = sim_from_maps(initial_maps, param_maps)
+        % Runs a series of simulations using various changes as specified
+        % by matrices having shape [n, 2]. The first column is the index
+        % of the species/param to be changed and the second column 
+        % indicates the new values
         n = length(initial_maps);
         if n ~= length(param_maps)
             error('Initial and param maps must be of the same size');
@@ -258,6 +262,7 @@ figures.f3 = @fig3;
 
         ps = plotdefaults(struct);
         ps.x = t;
+        % Various TImecourses
         ps.y(:,1) = thromb_percent(y, y0(ind.II));
         ps.y(:,2) = Xa_percent(y, y0(ind.X));
         ps.y(:,3) = IXa_percent(y, y0(ind.IX));
@@ -279,6 +284,7 @@ figures.f4 = @fig4;
     function fs = fig4
         fignum = 4;
         fprintf('Running Figure %2d\n', fignum);
+        % Varying Extrinsic Pathway Activation
         TF_VIIa_initials = [10e-3, 50e-3, 500e-3, 5]; % nM
         ntrials = length(TF_VIIa_initials) + 1;
         initial_map = cell(1, ntrials);
@@ -286,7 +292,7 @@ figures.f4 = @fig4;
         for i = 1:(ntrials - 1)
             initial_map{i + 1}  = [ind.TF_VIIa, TF_VIIa_initials(i)];
         end
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        [t, y] = sim_from_maps(initial_map, param_map);
         
         ps = struct;
         ps = plotdefaults(ps);
@@ -318,12 +324,15 @@ figures.f5 = @fig5;
         no_VIII = [ind.VIII, 0];
         no_V = [ind.V, 0];
         high_TF_VIIa = [ind.TF_VIIa, 1]; % nM
+        % Effects of 0 VIII
         initial_map{2} = no_VIII;
+        % Effects of 0 V
         initial_map{3} = no_V;
+        % Effects of high initial activation
         for i = 1:3
             initial_map{i + 3} = [high_TF_VIIa; initial_map{i}];
         end
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        [t, y] = sim_from_maps(initial_map, param_map);
         
         ps_templ = plotdefaults(struct);
         ps_templ.legend = {'Initial Model', 'No VIII', 'No V'};
@@ -364,6 +373,7 @@ figures.f6 = @fig6;
         ntrials = 4;
         initial_map = cell(1, ntrials);
         param_map = initial_map;
+        % Inhibition of various reactions
         param_map{2} = [2, 0];
         param_map{3} = [1, 0];
         param_map{4} = [4, 0];
@@ -391,8 +401,6 @@ main;
 end
 
 function ydot = odefun(~,y,p)
-
-
 % Collect param values in cell array and redefine params with names
 paramsCell = num2cell(p);
 [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
@@ -512,12 +520,14 @@ ylabel(ps.ylabel);
 xlim(ps.xlim);
 ylim(ps.ylim);
 leg = legend(ps.legend);
-if isfield(ps, 'legend_title')
-    title(leg, ps.legend_title);
+fieldstr = 'legend_title';
+if isfield(ps, fieldstr)
+    title(leg, ps.(fieldstr));
 end
 leg.LineWidth = 0.5;
-if isfield(ps, 'legend_loc')
-    leg.Location = ps.legend_loc;
+fieldstr = 'legend_loc';
+if isfield(ps, fieldstr)
+    leg.Location = ps.(fieldstr);
 end
 end
 
@@ -567,36 +577,6 @@ else
 end
 filename = ['Figures' filesep name];
 print(f,filename,'-dpng','-r300');
-end
-
-function save_all_figures(trial_name)
-% SAVEALLFIGURES saves all open figures as 300 dpi png files.
-
-fprintf('%s - Saving all figures ...\n\n', datestr(now));
-num = 1;
-figs = findall(groot, 'Type', 'figure');
-num_figs = length(figs);
-
-for i = 1:num_figs
-    f = figs(i);
-    
-    if isempty(f.Name)
-        name = sprintf('Untitled%02d',num);
-        num = num + 1;
-    else
-        name = f.Name;
-    end
-    
-    if nargin == 1
-        name = sprintf('%s - %s',trial_name,name);
-    end
-    
-    fprintf('Saving Figure %d of %d, \"%s\" ... \n',...
-        i, num_figs, name);
-    savefig(f, name);
-end
-fprintf('Saving Done!\n\n')
-
 end
 
 function corban_figure_defaults

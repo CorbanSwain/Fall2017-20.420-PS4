@@ -1,6 +1,6 @@
 function swain_corban_jones_mod
-% Implementation of Tissue Factor Pathway to Thrombin model for course
-% 20.420 - October, 2015
+% Modification of implementation of Tissue Factor Pathway to Thrombin
+% model for course 20.420 - November, 2017
 %
 % Reference: Jones, KC and Mann, KG. A model for the tissue factor pathway
 % to thrombin. J Biol Chem 269:37, 1994.
@@ -12,7 +12,7 @@ function swain_corban_jones_mod
 % November 2017
 
     function main
-        cleanup; % close all;
+        cleanup; close all;
         fprintf('Beginning Script ...\n');
         figs_to_plot = 1:2;
         corban_figure_defaults;
@@ -20,7 +20,7 @@ function swain_corban_jones_mod
             fs = figures.(sprintf('f%d', i))();
             fprintf('Drawing Figure %2d\n', i);
             fh = makefigure(fs); figure(fh);
-            savefig(fh);
+%             savefig(fh);
         end
         fprintf('Done!\n');
     end
@@ -133,13 +133,8 @@ ind.APC_S = 22;
 ind.APC_S_V = 23;
 
 %% Useful Calculations
-col_sum = @(X,cols) sum(X(:,cols),2);
 thromb_activity = @(y) sum(y(:,[ind.mIIa, ind.IIa]) .* [1.2, 1], 2);
 thromb_percent = @(y, II_0) thromb_activity(y) / II_0 * 100;
-Xa_activity = @(y) col_sum(y, [ind.Xa, ind.Va_Xa, ind.Va_Xa_II]);
-Xa_percent = @(y, X_0) Xa_activity(y) / X_0 * 100;
-IXa_activity = @(y) col_sum(y, [ind.IXa, ind.VIIIa_IXa, ind.VIIIa_IXa_X]);
-IXa_percent = @(y, IX_0) IXa_activity(y) / IX_0 * 100;
 odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
     function ps_out = plotdefaults(ps_in)
@@ -149,6 +144,10 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
     end
 
     function [t, y, y0, p] = sim_from_maps(initial_maps, param_maps)
+        % Runs a series of simulations using various changes as specified
+        % by matrices having shape (n, 2). The first column is the index
+        % of the species/param to be changed and the second column 
+        % indicates the new values.
         n = length(initial_maps);
         if n ~= length(param_maps)
             error('Initial and param maps must be of the same size');
@@ -172,8 +171,39 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 %% Figures
 figures = struct;
 
+figures.f1 = @fig1;
+    function fs = fig1
+        % Comparing effects of adding anticoagulatory factors
+        fignum = 1;
+        fprintf('Running Figure %2d\n', fignum);
+        ntrials = 2;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        param_map{1} = [(21:29)', zeros(9, 1)];
+        
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        for i = 1:ntrials
+            ps.x{i} = t{i};
+            ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
+        end
+        ps = plotdefaults(ps);
+        ps.ylabel = '% Thrombin Formation';
+        ps.ylim = [0 120];
+        ps.xlim = [0, 250];
+        ps.legend = {'Initial Model'; 'Anticoagulation Model'};
+        ps.legend_loc = 'east';
+
+        fs.n = fignum;
+        fs.title = sprintf('MOD%d - Anti Coagulation Model', ...
+            fignum);
+        fs.position = [1000 548 929 407];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
+    end
+
 figures.f2 = @fig2;
     function fs = fig2
+        % Comparing Different contraceptive effects
         fignum = 2;
         fprintf('Running Figure %2d\n', fignum);
         ntrials = 4;
@@ -208,35 +238,6 @@ figures.f2 = @fig2;
         fs.title = sprintf('MOD%d - Effects of Contraceptives', ...
             fignum);
         fs.position = [3 548 929 407];
-        fs.plots = {ps};
-        fs.sub = [1, 1];
-    end
-
-figures.f1 = @fig1;
-    function fs = fig1
-        fignum = 1;
-        fprintf('Running Figure %2d\n', fignum);
-        ntrials = 2;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        param_map{1} = [(21:29)', zeros(9, 1)];
-        
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
-        for i = 1:ntrials
-            ps.x{i} = t{i};
-            ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II));
-        end
-        ps = plotdefaults(ps);
-        ps.ylabel = '% Thrombin Formation';
-        ps.ylim = [0 120];
-        ps.xlim = [0, 250];
-        ps.legend = {'Initial Model'; 'Anticoagulation Model'};
-        ps.legend_loc = 'east';
-
-        fs.n = fignum;
-        fs.title = sprintf('MOD%d - Anti Coagulation Model', ...
-            fignum);
-        fs.position = [1000 548 929 407];
         fs.plots = {ps};
         fs.sub = [1, 1];
     end
@@ -328,8 +329,7 @@ dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa ...
 % maximal VIIIa_IXa
 dI = k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
 
-
-% MODIFICATIONS
+%% MODIFICATIONS
 % recycling upon APC complex dissosiation
 dV = dV + km8 * APC_S_V;
 dXa = dXa + km6 * Va_Xa * APC_S + km6 * APC_S_V * Va_Xa;
@@ -357,10 +357,9 @@ dAPC_S_V = km4 * APC_S * V - km5 * APC_S_V - km8 * APC_S_V;
 % protein s
 dS = -km2 * APC * S + km3 * APC_S + km8 * (APC_S + APC_S_V);
 
-
 % Collect all ODEs for output
-ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
-        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa;...
+ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II; ...
+        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa; ...
         dI;dS;dPC;dAPC;dAPC_S;dAPC_S_V];
 end
 
@@ -454,36 +453,6 @@ else
 end
 filename = ['Figures' filesep name];
 print(f,filename,'-dpng','-r300');
-end
-
-function save_all_figures(trial_name)
-% SAVEALLFIGURES saves all open figures as 300 dpi png files.
-
-fprintf('%s - Saving all figures ...\n\n', datestr(now));
-num = 1;
-figs = findall(groot, 'Type', 'figure');
-num_figs = length(figs);
-
-for i = 1:num_figs
-    f = figs(i);
-    
-    if isempty(f.Name)
-        name = sprintf('Untitled%02d',num);
-        num = num + 1;
-    else
-        name = f.Name;
-    end
-    
-    if nargin == 1
-        name = sprintf('%s - %s',trial_name,name);
-    end
-    
-    fprintf('Saving Figure %d of %d, \"%s\" ... \n',...
-        i, num_figs, name);
-    savefig(f, name);
-end
-fprintf('Saving Done!\n\n')
-
 end
 
 function corban_figure_defaults
