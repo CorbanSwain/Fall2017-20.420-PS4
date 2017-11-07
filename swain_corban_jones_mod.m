@@ -1,6 +1,6 @@
-function swain_corban_jones
-% Implementation of Tissue Factor Pathway to Thrombin model for course
-% 20.420 - October, 2015
+function swain_corban_jones_mod
+% Modified Implementation of Tissue Factor Pathway to Thrombin model for 
+% course 20.420 - October, 2015
 %
 % Reference: Jones, KC and Mann, KG. A model for the tissue factor pathway
 % to thrombin. J Biol Chem 269:37, 1994.
@@ -14,7 +14,7 @@ function swain_corban_jones
     function main
         cleanup; close all;
         fprintf('Beginning Script ...\n');
-        figures = {fig1, fig2, fig3, fig4, fig5, fig6};
+        figures = {fig1};
         corban_figure_defaults;
         for i = 1:length(figures)
             fprintf('Drawing Figure %2d\n', figures{i}.n);
@@ -118,7 +118,7 @@ Xa_activity = @(y) col_sum(y, [ind.Xa, ind.Va_Xa, ind.Va_Xa_II]);
 Xa_percent = @(y, X_0) Xa_activity(y) / X_0 * 100;
 IXa_activity = @(y) col_sum(y, [ind.IXa, ind.VIIIa_IXa, ind.VIIIa_IXa_X]);
 IXa_percent = @(y, IX_0) IXa_activity(y) / IX_0 * 100;
-odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
+odesim = @(y0, p) ode15s(@odefun_original, tspan, y0, odeopts, p);
 
     function ps_out = plotdefaults(ps_in)
         ps_in.xlim = [0 250];
@@ -149,240 +149,14 @@ odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
 %% Figures
     function fs = fig1
-        fignum = 1;
-        fprintf('Running Figure %2d\n', fignum);
-        ntrials = 3;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        % Alternate 1: k7 = 1e6 1/M/s,  k9 = 5e-4 1/s
-        param_map{2} = [...
-            7, 1e6 * 1e-9; ...
-            9, 5e-4];
-        % Alternate 3: k8 = 4e7 1/M/s, k10 = 4e-2 1/s
-        param_map{3} = [...
-            8, 4e7 * 1e-9; ...
-            10, 4e-2]; 
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
-        
-        function ps = plotA
-            ps.x = t{1};
-            ps.y = thromb_percent(y{1}, y0{1}(ind.II));
-            ps = plotdefaults(ps);
-            ps.ylabel = '% Thrombin Formation';
-            ps.ylim = [0 120];
-            ps.legend = {'Initial Model'};
-            ps.legend_loc = 'northwest';
-        end
-
-        function ps = plotB
-            ps.x = t;
-            for i = 1:ntrials
-                ps.y{i} = thromb_activity(y{i}) ./ 1e3;
-            end
-            ps = plotdefaults(ps);
-            ps.ylabel = 'Thrombin Formation (\muM)';
-            ps.ylim = [0 1.6];
-            ps.legend = {'Initial Model', 'Alternate 1', ...
-                'Alternate 2'};
-            ps.legend_loc = 'northwest';
-        end
-
-        fs.n = fignum;
-        fs.title = sprintf(['%d - Thrombin Timecourse, ', ...
-            'Model Validation'], ...
-            fignum);
-        fs.position = [3 384 473 571];
-        fs.plots = {plotA, plotB};
-        fs.sub = [2, 1];
-    end
-
-    function fs = fig2
-        fignum = 2;
-        fprintf('Running Figure %2d\n',fignum);
-        ntrials = 2;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        % No Degradation of VIIIa-IXa
-        param_map{2} = [20, 0];
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
-        
-        ps_templ.legend = {'Initial Model','Stable VIIIa-IXa'};
-        ps_templ.legend_loc = 'northwest';
-        ps_templ.x = t;
-        ps_templ = plotdefaults(ps_templ);
-        
-        function ps = plotA
-            ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = thromb_percent(y{i}, y0{i}(ind.II)); 
-            end
-            ps.ylabel = '% Thrombin Formation';
-            ps.ylim = [0 120];
-        end
-        function ps = plotB
-            ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = Xa_percent(y{i}, y0{i}(ind.X)); 
-            end
-            ps.ylabel = '% Xa Formation';
-            ps.ylim = [0 100];
-        end
-        function ps = plotC
-            ps = ps_templ;
-            for i = 1:ntrials
-                ps.y{i} = IXa_percent(y{i}, y0{i}(ind.IX)); 
-            end
-            ps.ylabel = '% IXa Formation';
-            ps.ylim = [0 70];
-        end
-
-        fs.n = fignum;
-        fs.title = sprintf('%d - Effecs of Stable VIIIa-IXa',fignum);
-        fs.position = [478 161 447 794];
-        fs.plots = {plotA, plotB, plotC};
-        fs.sub = [3, 1];
-    end
-
-    function fs = fig3
-        fignum = 3;
-        fprintf('Running Figure %2d\n', fignum);
-        y0 = y0_original;
-        p = p_original;
-        [t, y] = odesim(y0, p);
-
-        ps = struct;
-        ps = plotdefaults(ps);
-        ps.x = t;
-        ps.y(:,1) = thromb_percent(y, y0(ind.II));
-        ps.y(:,2) = Xa_percent(y, y0(ind.X));
-        ps.y(:,3) = IXa_percent(y, y0(ind.IX));
-        ps.y(:,4) = y(:, ind.V) / y0(ind.V) * 100;
-        ps.y(:,5) = y(:, ind.VIII) / y0(ind.VIII) * 100;
-        ps.ylabel = '% Formation / Degradation ';
-        ps.ylim = [0 120];
-        ps.legend = {'Thrombin', 'Xa', 'IXa', 'V', 'VIII'};
-        ps.legend_loc = 'east';
-        
-        fs.n = fignum;
-        fs.title = sprintf('%d - Species Timecourses', fignum);
-        fs.position = [927 648 446 307];
-        fs.plots = {ps};
-        fs.sub = [1, 1];
-    end
-
-    function fs = fig4
-        fignum = 4;
-        fprintf('Running Figure %2d\n', fignum);
-        TF_VIIa_initials = [10e-3, 50e-3, 500e-3, 5]; % nM
-        ntrials = length(TF_VIIa_initials) + 1;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        for i = 1:(ntrials - 1)
-            initial_map{i + 1}  = [ind.TF_VIIa, TF_VIIa_initials(i)];
-        end
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
-        
-        ps = struct;
-        ps = plotdefaults(ps);
-        ps.x = t;
-        for i = 1:ntrials
-            ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
-        end
-        ps.legend = {'Initial Model (5 pM)',...
-            '10 pM', '50 pM', '500 pM', '5 nM'};
-        ps.legend_loc = 'southeast';
-        ps.legend_title = '[TF-VIIa]_{0}';
-        ps.ylabel = 'Thrombin Formation (\muM)';
-        ps.ylim = [0 1.6];
-        
-        fs.n = fignum;
-        fs.title = sprintf('%d - Effecs Increasing TF-VIIa',fignum);
-        fs.position = [926 245 447 329];
-        fs.plots = {ps};
-        fs.sub = [1, 1];
-    end
-
-    function fs = fig5
-        fignum = 5;
-        fprintf('Running Figure %2d\n',fignum);
-        ntrials = 6;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        no_VIII = [ind.VIII, 0];
-        no_V = [ind.V, 0];
-        high_TF_VIIa = [ind.TF_VIIa, 1]; % nM
-        initial_map{2} = no_VIII;
-        initial_map{3} = no_V;
-        for i = 1:3
-            initial_map{i + 3} = [high_TF_VIIa; initial_map{i}];
-        end
-        [t, y, y0] = sim_from_maps(initial_map, param_map);
-        
-        ps_templ = plotdefaults(struct);
-        ps_templ.legend = {'Initial Model','No VIII', 'No V'};
-        ps_templ.ylabel = 'Thrombin Formation (\muM)';
-        ps_templ.ylim = [0 1.6];
-        
-        function ps = plotA
-            ps = ps_templ;
-            for j = 1:3
-                ps.y{j} = thromb_activity(y{j}) ./ 1e3; 
-                ps.x{j} = t{j};
-            end
-            ps.legend_loc = 'northwest';
-            ps.legend_title = '[TF-VIIa]_{0} = 5 pM';
-        end
-        b_indexes = 4:6;
-        function ps = plotB
-            ps = ps_templ;
-            for j = 1:3
-                ps.y{j} = thromb_activity(y{b_indexes(j)}) ./ 1e3;
-                ps.x{j} = t{b_indexes(j)};
-            end
-            ps.legend_loc = 'southeast';
-            ps.legend_title = '[TF-VIIa]_{0} = 1 nM';
-        end
-
-        fs.n = fignum;
-        fs.title = sprintf('%d - Effecs of Pro-cofactors', fignum);
-        fs.position = [1374 385 474 570];
-        fs.plots = {plotA, plotB};
-        fs.sub = [2, 1];
-    end
-
-    function fs = fig6
-        fignum = 6;
-        fprintf('Running Figure %2d\n', fignum);
-        ntrials = 4;
-        initial_map = cell(1, ntrials);
-        param_map = initial_map;
-        param_map{2} = [2, 0];
-        param_map{3} = [1, 0];
-        param_map{4} = [4, 0];
-        [t, y] = sim_from_maps(initial_map, param_map);
-        
-        ps = plotdefaults(struct);
-        ps.x = t;
-        for i = 1:ntrials
-            ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
-        end
-        ps.legend = {'Initial Model',...
-            'k_2 = 0', 'k_1 = 0', 'k_4 = 0'};
-        ps.legend_loc = 'northwest';
-        ps.ylabel = 'Thrombin Formation (\muM)';
-        ps.ylim = [0 1.6];
-        
-        fs.n = fignum;
-        fs.title = sprintf('%d - Contributions of IIa and Xa',fignum);
-        fs.position = [1374 8 474 303];
-        fs.plots = {ps};
-        fs.sub = [1, 1];
+        fs = struct;
     end
 
 main;
 end
 
-function ydot = odefun(~,y,p)
+%% ODE Functions
+function ydot = odefun_original(~,y,p)
 
 
 % Collect param values in cell array and redefine params with names
@@ -467,6 +241,22 @@ dI = k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
 % Collect all ODEs for output
 ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
         dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa;dI];
+end
+
+function ydot = odefun_modified(t,y,p)
+
+% Collect param values in cell array and redefine params with names
+paramsCell = num2cell(p);
+[k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
+ k11,k12,k13,k14,k15,k16,k17,k18,k19,k20]=paramsCell{:};
+
+% Collect y-vals in cell array and redefine y-vals with names
+yCell = num2cell(y);
+[TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
+ TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I] = yCell{:};
+
+ydot = odefun_original(t, y ,p);
+
 end
 
 %% Figure Making Helper Functions
