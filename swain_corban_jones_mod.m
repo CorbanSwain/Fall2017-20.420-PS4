@@ -1,6 +1,6 @@
-function swain_corban_jones_mod
-% Modified Implementation of Tissue Factor Pathway to Thrombin model for 
-% course 20.420 - October, 2015
+function swain_corban_jones
+% Implementation of Tissue Factor Pathway to Thrombin model for course
+% 20.420 - October, 2015
 %
 % Reference: Jones, KC and Mann, KG. A model for the tissue factor pathway
 % to thrombin. J Biol Chem 269:37, 1994.
@@ -14,12 +14,13 @@ function swain_corban_jones_mod
     function main
         cleanup; close all;
         fprintf('Beginning Script ...\n');
-        figures = {fig1};
+        figs_to_plot = 1;
         corban_figure_defaults;
-        for i = 1:length(figures)
-            fprintf('Drawing Figure %2d\n', figures{i}.n);
-            fh = makefigure(figures{i});
-            savefig(fh);
+        for i = figs_to_plot
+            fs = figures.(sprintf('f%d', i))();
+            fprintf('Drawing Figure %2d\n', i);
+            fh = makefigure(fs); figure(fh);
+%             savefig(fh);
         end
         fprintf('Done!\n');
     end
@@ -46,6 +47,14 @@ k17 = 44;   % [1/s]   - off-rate for X on TF-VIIa complex
 k18 = 1e-3; % [1/s]   - off-rate for X on VIIIa-IXa complex
 k19 = 70;   % [1/s]   - off-rate for II on Va-Xa complex
 k20 = 2e-2; % [1/s]   - constant for the slow degration of VIIIa-IXa
+km1 = 8.1e-3;
+km2 = 1e-2;
+km3 = 1e-3;
+km4 = km2;
+km5 = km3;
+km6 = 1e-2;
+km7 = 1e-2;
+km8 = 8e-4;
 p_original = collect_params;
 
 % Initial concentrations in [nM] (GET from Lawson et al. 1994)
@@ -68,25 +77,32 @@ Xa = 0;             % species 16
 Va = 0;             % species 17
 VIIIa = 0;          % species 18
 I = 5e-3;           % upper limit on factor VIIIa_IXa
+S = 300;
+PC = 65;
+APC = 0;
+APC_S = 0;
+APC_S_V = 0;
 y0_original = collect_initials;
 
     function p = collect_params
     % collect parameters for original model
         p = [k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
-             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20];
+             k11,k12,k13,k14,k15,k16,k17,k18,k19,k20, ...
+             km1,km2,km3,km4,km5,km6,km7,km8];
     end
 
     function y0 = collect_initials
     % Collect species initial concentrations for original model
         y0 = [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
-            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I];
+            TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I,S,PC,...
+            APC,APC_S,APC_S_V];
     end
 
 % ODE solver options
 tol = 1e-9;
 odeopts = odeset('RelTol',tol,'AbsTol',tol,...
     'NonNegative',1:length(y0_original));
-tspan = [0, 240];
+tspan = [0, 1e3];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -109,6 +125,11 @@ ind.Xa = 16;
 ind.Va = 17;
 ind.VIIIa = 18;
 ind.I = 19;
+ind.S = 20;
+ind.PC = 21;
+ind.APC = 21;
+ind.APC_S = 22;
+ind.APC_S_V = 23;
 
 %% Useful Calculations
 col_sum = @(X,cols) sum(X(:,cols),2);
@@ -118,10 +139,10 @@ Xa_activity = @(y) col_sum(y, [ind.Xa, ind.Va_Xa, ind.Va_Xa_II]);
 Xa_percent = @(y, X_0) Xa_activity(y) / X_0 * 100;
 IXa_activity = @(y) col_sum(y, [ind.IXa, ind.VIIIa_IXa, ind.VIIIa_IXa_X]);
 IXa_percent = @(y, IX_0) IXa_activity(y) / IX_0 * 100;
-odesim = @(y0, p) ode15s(@odefun_original, tspan, y0, odeopts, p);
+odesim = @(y0, p) ode15s(@odefun, tspan, y0, odeopts, p);
 
     function ps_out = plotdefaults(ps_in)
-        ps_in.xlim = [0 250];
+        ps_in.xlim = tspan;
         ps_in.xlabel = 'Time (s)';
         ps_out = ps_in;
     end
@@ -148,26 +169,52 @@ odesim = @(y0, p) ode15s(@odefun_original, tspan, y0, odeopts, p);
     end
 
 %% Figures
+figures = struct;
+
+figures.f1 = @fig1;
     function fs = fig1
-        fs = struct;
+        fignum = 1;
+        fprintf('Running Figure %2d\n', fignum);
+        ntrials = 1;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+ 
+        [t, y, y0] = sim_from_maps(initial_map, param_map);
+        
+        ps.x = t{1};
+        ps.y = thromb_percent(y{1}, y0{1}(ind.II));
+        ps = plotdefaults(ps);
+        ps.ylabel = '% Thrombin Formation';
+        ps.ylim = [0 120];
+        ps.legend = {'Initial Model'};
+        ps.legend_loc = 'northwest';
+
+        fs.n = fignum;
+        fs.title = sprintf(['%d - Thrombin Timecourse, ', ...
+            'Model Validation'], ...
+            fignum);
+        fs.position = [3 384 473 571];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
     end
 
 main;
 end
 
-%% ODE Functions
-function ydot = odefun_original(~,y,p)
-
-
+function ydot = odefun(~,y,p)
 % Collect param values in cell array and redefine params with names
 paramsCell = num2cell(p);
-[k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
- k11,k12,k13,k14,k15,k16,k17,k18,k19,k20]=paramsCell{:};
+[k1,k2,k3,k4,k5,k6,k7,k8,k9,k10, ...
+ k11,k12,k13,k14,k15,k16,k17,k18,k19,k20, ...
+ km1,km2,km3,km4,km5,km6,km7,km8]=paramsCell{:};
+
+% dS;dPC;dAPC;dAPC_S;dAPC_S_V
 
 % Collect y-vals in cell array and redefine y-vals with names
 yCell = num2cell(y);
 [TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
- TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I] = yCell{:};
+ TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I,S,PC,APC,...
+ APC_S,APC_S_V] = yCell{:};
 
 %%% ODEs %%%
 
@@ -191,7 +238,7 @@ dVIII = -k3*VIII*Xa - k4*VIII*IIa - k4*VIII*mIIa;
 dII = k19*Va_Xa_II - k6*Va_Xa*II;
 
 % VIIIa-IXa - species 7 
-if (k20)  && (I < VIIIa_IXa)
+if (k20) && (I < VIIIa_IXa)
     dVIIIa_IXa = 0;
 else
     dVIIIa_IXa = k7*VIIIa*IXa - k9*VIIIa_IXa - k6*VIIIa_IXa*X ...
@@ -238,25 +285,39 @@ dVIIIa = k9*VIIIa_IXa - k7*VIIIa*IXa + k3*VIII*Xa ...
 % maximal VIIIa_IXa
 dI = k20 * (-abs(I - VIIIa_IXa) + (I - VIIIa_IXa));
 
+
+% MODIFICATIONS
+% V recycling upon APC complex dissosiation
+dV = dV + km8 * APC_S_V;
+
+% Va Inactivation
+dVa = dVa - km6 * APC_S * Va - km6 * APC_S_V * Va;
+dVa_Xa = dVa_Xa - km6 * APC_S * Va_Xa - km6 * APC_S_V * Va_Xa;
+
+% VIIa inactivation
+dTF_VIIa = dTF_VIIa - km7 * APC_S_V * TF_VIIa;
+
+% Protein C
+dPC = -km1 * PC * mIIa - km1 * PC * IIa + km8 * (APC + APC_S + APC_S_V);
+
+% active protein c
+dAPC = km1 * PC * mIIa + km1 * PC * IIa - km2 * APC * S + km3 * APC_S ...
+    - km8 * APC;
+
+% active protein c - s
+dAPC_S = km2 * APC * S - km4 * APC_S * V + km5 * APC_S_V - km8 * APC_S;
+
+% active protein c - s - v
+dAPC_S_V = km4 * APC_S * V - km5 * APC_S_V - km8 * APC_S_V;
+
+% protein s
+dS = -km2 * APC * S + km3 * APC_S + km8 * (APC_S + APC_S_V);
+
+
 % Collect all ODEs for output
 ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II;
-        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa;dI];
-end
-
-function ydot = odefun_modified(t,y,p)
-
-% Collect param values in cell array and redefine params with names
-paramsCell = num2cell(p);
-[k1,k2,k3,k4,k5,k6,k7,k8,k9,k10,...
- k11,k12,k13,k14,k15,k16,k17,k18,k19,k20]=paramsCell{:};
-
-% Collect y-vals in cell array and redefine y-vals with names
-yCell = num2cell(y);
-[TF_VIIa,IX,X,V,VIII,II,VIIIa_IXa,Va_Xa,IIa,Va_Xa_II,mIIa,...
- TF_VIIa_IX,TF_VIIa_X,VIIIa_IXa_X,IXa,Xa,Va,VIIIa,I] = yCell{:};
-
-ydot = odefun_original(t, y ,p);
-
+        dmIIa;dTF_VIIa_IX;dTF_VIIa_X;dVIIIa_IXa_X;dIXa;dXa;dVa;dVIIIa;...
+        dI;dS;dPC;dAPC;dAPC_S;dAPC_S_V];
 end
 
 %% Figure Making Helper Functions
@@ -383,7 +444,7 @@ end
 
 function corban_figure_defaults
 % CORBANFIGUREDEFAULTS Sets default values to make pretty figures.
-fontSize = 15;
+fontSize = 12;
 font = 'Helvetica';
 set(groot, ...
     'defaultLineMarkerSize', 40,...
