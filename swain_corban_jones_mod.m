@@ -12,9 +12,9 @@ function swain_corban_jones_mod
 % November 2017
 
     function main
-        cleanup; close all;
+        cleanup; % close all;
         fprintf('Beginning Script ...\n');
-        figs_to_plot = 1:2;
+        figs_to_plot = 1:3;
         corban_figure_defaults;
         for i = figs_to_plot
             fs = figures.(sprintf('f%d', i))();
@@ -103,7 +103,7 @@ y0_original = collect_initials;
 tol = 1e-9;
 odeopts = odeset('RelTol',tol,'AbsTol',tol,...
     'NonNegative',1:length(y0_original));
-tspan = [0, 3e3];
+tspan = [0, 1e4];
 
 %% Index Struct
 % Struct for easier indexing of specific species.
@@ -238,6 +238,63 @@ figures.f2 = @fig2;
         fs.title = sprintf('MOD%d - Effects of Contraceptives', ...
             fignum);
         fs.position = [3 548 929 407];
+        fs.plots = {ps};
+        fs.sub = [1, 1];
+    end
+
+figures.f3 = @fig3;
+    function fs = fig3
+        fignum = 3;
+        fprintf('Running Figure %2d\n', fignum);
+        % Varying Extrinsic Pathway Activation
+        TF_VIIa_initials = [0.1 5]; % nM
+        ninits = length(TF_VIIa_initials) + 1;
+        ntrials = ninits * 4;
+        initial_map = cell(1, ntrials);
+        param_map = initial_map;
+        for i = 1:(ninits - 1)
+            initial_map{i + 1}  = [ind.TF_VIIa, TF_VIIa_initials(i)];
+        end
+        species_incr = ["V";"VIII";"IX";"X";"PC"];
+        n1 = length(species_incr);
+        for i = (1:ninits) + ninits
+            initial_map{i} = zeros(n1, 2);
+            for j = 1:n1
+                index = ind.(species_incr(j));
+                initial_map{i}(j, :) = [index, y0_original(index) * 1.3];
+            end
+            initial_map{i} = [initial_map{i - ninits}; initial_map{i}];
+        end
+        for i = (1:ninits) + (ninits * 2)
+            initial_map{i} = [initial_map{i - ninits}; ...
+                ind.S, y0_original(ind.S) * 0.8];
+        end
+        for i = (1:ninits) + (ninits * 3)
+            initial_map{i} = [initial_map{i - ninits}; ...
+                ind.TF_VIIa, y0_original(ind.TF_VIIa) * 1.30];
+        end
+        
+        
+        [t, y] = sim_from_maps(initial_map, param_map);
+        
+        ps = struct;
+        ps = plotdefaults(ps);
+        ps.color_cycle = ninits;
+        ps.spec_cycle = {'-';'--';':';'-.'}; 
+        ps.x = t;
+        for i = 1:ntrials
+            ps.y{i} = thromb_activity(y{i}) ./ 1e3; 
+        end
+        ps.legend = {'Initial Model (5 pM)', ...
+            '100 pM', '1 nM'};
+        ps.legend_loc = 'southeast';
+        ps.legend_title = '[TF-VIIa]_{0}';
+        ps.ylabel = 'Thrombin Formation (\muM)';
+        ps.ylim = [0 1.6];
+        
+        fs.n = fignum;
+        fs.title = sprintf('%d - Effecs Increasing TF-VIIa',fignum);
+%         fs.position = [926 245 447 329];
         fs.plots = {ps};
         fs.sub = [1, 1];
     end
@@ -381,11 +438,25 @@ function makeplot(ps)
 grid on;
 if iscell(ps.x) && iscell(ps.y)
     n = length(ps.x);
+    cycle = 1;
+    spec = {'-'};
+    fieldstr = 'spec_cycle';
+    if isfield(ps, fieldstr)
+        spec = ps.(fieldstr);
+    end
     if  n ~= length(ps.y)
         error('x and y cell arrays have mismatched dimensions.');
     end
     for i = 1:n
-        plot(ps.x{i}, ps.y{i});
+        fieldstr = 'color_cycle';
+        if isfield(ps, fieldstr)
+            if (mod(i, ps.(fieldstr)) == 1) && (i ~= 1)
+                ax = gca;
+                ax.ColorOrderIndex = 1;
+                cycle = cycle + 1;
+            end
+        end
+            plot(ps.x{i}, ps.y{i},spec{cycle});
     end
 else
     if iscell(ps.x) || iscell(ps.y)
