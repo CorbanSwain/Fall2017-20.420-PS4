@@ -8,7 +8,7 @@ function swain_corban_jones_mod
 % Initial conditions reference: Lawson, JH, et al. A model for the tissue
 % factor pathway to thrombin. J Biol Chem 269:37, 1994.
 %
-% HW Completed by Corban Swain
+% HW Completed by Corban N. Swain
 % November 2017
 
     function main
