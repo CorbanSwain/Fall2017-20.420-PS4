@@ -420,7 +420,7 @@ ydot = [dTF_VIIa;dIX;dX;dV;dVIII;dII;dVIIIa_IXa;dVa_Xa;dIIa;dVa_Xa_II; ...
         dI;dS;dPC;dAPC;dAPC_S;dAPC_S_V];
 end
 
-%% Figure Making Helper Functions
+%% Corban Swain Utilities
 function fighand = makefigure(fs)
 if isfield(fs, 'position')
     fighand = setupfig(fs.n, fs.title, fs.position);
@@ -478,7 +478,6 @@ if isfield(ps, 'legend_loc')
 end
 end
 
-%% Corban Swain Utilities
 function new_fig = setupfig(n,title,location)
 % SETUPFIGURE Sets up a new figure.
 %
